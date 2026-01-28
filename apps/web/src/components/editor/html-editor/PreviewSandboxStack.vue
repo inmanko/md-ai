@@ -7,6 +7,7 @@ import { Check, X } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import HtmlElementEditBar from './HtmlElementEditBar.vue'
+import HtmlRenderBase from './HtmlRenderBase.vue'
 import { useHtmlEditorStore } from './useHtmlEditorStore'
 import { useHtmlSandboxStore } from './useHtmlSandboxStore'
 
@@ -16,78 +17,11 @@ const htmlSandboxStore = useHtmlSandboxStore()
 const { htmlContent } = storeToRefs(htmlEditorStore)
 const { sandboxContent, modifiedSections, isActive: isSandboxActive } = storeToRefs(htmlSandboxStore)
 
-function generateSandboxHtml(content: string): string {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-          padding: 16px;
-          overflow-y: auto;
-        }
-        img {
-          max-width: 100%;
-          height: auto;
-          border-radius: 8px;
-        }
-        pre {
-          overflow-x: auto;
-          padding: 1em;
-          background: #f5f5f5;
-          border-radius: 8px;
-        }
-        code {
-          font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
-        }
-        /* 修改标记样式 */
-        [data-sandbox-modified] {
-          position: relative;
-          outline: 2px dashed rgba(251, 191, 36, 0.8) !important;
-          outline-offset: 4px;
-          background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%) !important;
-          border-radius: 8px;
-          animation: sandboxPulse 2s ease-in-out infinite;
-        }
-        [data-sandbox-modified]::before {
-          content: '已修改';
-          position: absolute;
-          top: -10px;
-          right: -10px;
-          font-size: 10px;
-          padding: 3px 8px;
-          background: linear-gradient(135deg, #fbbf24, #f59e0b);
-          color: white;
-          border-radius: 6px;
-          font-weight: 600;
-          box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
-          z-index: 10;
-        }
-        @keyframes sandboxPulse {
-          0%, 100% {
-            outline-color: rgba(251, 191, 36, 0.6);
-            box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.2);
-          }
-          50% {
-            outline-color: rgba(251, 191, 36, 1);
-            box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.1);
-          }
-        }
-      </style>
-    </head>
-    <body>
-      ${content}
-    </body>
-    </html>
-  `
+// 滚动同步状态
+const sharedScrollTop = ref(0)
+
+function handleScroll(scrollTop: number) {
+  sharedScrollTop.value = scrollTop
 }
 
 function handleApply() {
@@ -121,11 +55,14 @@ function handleDiscard() {
         <span class="panel-title">预览（可编辑）</span>
       </div>
       <div class="panel-content">
-        <HtmlElementEditBar :html-content="htmlContent" />
+        <HtmlElementEditBar
+          :html-content="htmlContent"
+          :scroll-top="sharedScrollTop"
+          @scroll="handleScroll"
+        />
       </div>
     </div>
 
-    <!-- 沙盒区域 - 只读预览 -->
     <div v-if="isSandboxActive" class="row-panel sandbox-panel">
       <div class="panel-header sandbox-header">
         <div class="header-left">
@@ -161,12 +98,11 @@ function handleDiscard() {
         </div>
       </div>
       <div class="panel-content">
-        <iframe
-          id="sandbox-output"
-          class="sandbox-iframe"
-          sandbox="allow-same-origin"
-          frameborder="0"
-          :srcdoc="generateSandboxHtml(sandboxContent)"
+        <HtmlRenderBase
+          :html-content="sandboxContent"
+          :scroll-top="sharedScrollTop"
+          show-modified-markers
+          @scroll="handleScroll"
         />
       </div>
     </div>
@@ -209,12 +145,16 @@ function handleDiscard() {
     0 1px 2px -1px rgb(0 0 0 / 0.15);
 }
 
-/* 预览面板 - 手机宽度 */
-.preview-panel {
+/* 面板宽度 - 统一使用手机宽度以便对比 */
+.preview-panel,
+.sandbox-panel {
   width: 375px; /* iPhone 标准宽度 */
   max-width: 375px;
   flex-shrink: 0;
-  margin: 0 auto; /* 居中显示 */
+}
+
+.preview-panel {
+  margin: 0 auto; /* 仅在非沙盒模式下生效或由 flex 容器控制 */
 }
 
 /* 当没有沙盒时，预览面板居中 */
@@ -222,14 +162,9 @@ function handleDiscard() {
   justify-content: center;
 }
 
-/* 当有沙盒时，沙盒面板占据剩余空间 */
+/* 当有沙盒时，两面板并排居中 */
 .preview-sandbox-row.has-sandbox {
-  justify-content: flex-start;
-}
-
-.sandbox-panel {
-  flex: 1;
-  min-width: 0;
+  justify-content: center;
 }
 
 /* 面板头部 */

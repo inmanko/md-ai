@@ -25,14 +25,20 @@ import { toBase64 } from '@/utils'
 import { fileUpload } from '@/utils/file'
 import AiRefineInput from './AiRefineInput.vue'
 import { findElementByIdInSource } from './htmlElementUtils'
+import HtmlRenderBase from './HtmlRenderBase.vue'
 import { useHtmlEditorStore } from './useHtmlEditorStore'
 import { usePreviewStyleStore } from './usePreviewStyleStore'
 
 const { htmlContent } = defineProps<{
   htmlContent: string
+  scrollTop?: number
 }>()
 
-const previewRef = ref<HTMLDivElement>()
+const emit = defineEmits<{
+  scroll: [scrollTop: number]
+}>()
+
+const previewRef = ref<InstanceType<typeof HtmlRenderBase>>()
 const selectedElement = ref<HTMLElement | null>(null)
 const contextMenuOpen = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
@@ -56,29 +62,28 @@ const isTransitioning = ref(false)
 const transitionDuration = 200 // 动画持续时间(ms)
 let transitionTimer: ReturnType<typeof setTimeout> | null = null
 
-watchEffect(() => {
-  if (previewRef.value) {
-    previewRef.value.innerHTML = htmlContent
+// 移除原来的 watchEffect，改由 HtmlRenderBase 的 @load 触发
+function handleBaseLoad(doc: Document) {
+  nextTick(() => {
+    setupElementSelection(doc)
+  })
+}
+
+// 监听内容变化，重新同步事件
+watch(() => props.htmlContent, () => {
+  const doc = previewRef.value?.getDocument()
+  if (doc) {
     nextTick(() => {
-      previewStyleStore.applyStyles()
-      setupElementSelection()
+      setupElementSelection(doc)
     })
   }
 })
 
-// 监听对话框关闭，清理保存的元素引用
-watch([imageSelectionDialogOpen, searchImageDialogOpen], ([imageDialogOpen, searchDialogOpen]) => {
-  // 当两个对话框都关闭时，清理保存的元素引用
-  if (!imageDialogOpen && !searchDialogOpen && currentOperatingElement.value) {
-    // 延迟清理，给 handleImageSelected 足够的时间执行
-    setTimeout(() => {
-      if (!imageSelectionDialogOpen.value && !searchImageDialogOpen.value) {
-        currentOperatingElement.value = null
-      }
-    }, 100)
-  }
-})
+function handleBaseScroll(scrollTop: number) {
+  emit(`scroll`, scrollTop)
+}
 
+let currentDoc: Document | null = null
 let mouseUpHandler: ((e: MouseEvent) => void) | null = null
 let mouseDownHandler: ((e: MouseEvent) => void) | null = null
 let mouseMoveHandler: ((e: MouseEvent) => void) | null = null
@@ -87,22 +92,21 @@ let selectionCheckTimer: ReturnType<typeof setTimeout> | null = null
 let isSelecting = false
 let hoverTimer: ReturnType<typeof setTimeout> | null = null
 
-function setupElementSelection() {
-  if (!previewRef.value) {
-    return
-  }
+function setupElementSelection(doc: Document) {
+  currentDoc = doc
+  const root = doc.getElementById(`html-output`) || doc.body
 
   if (mouseUpHandler) {
-    previewRef.value.removeEventListener(`mouseup`, mouseUpHandler)
+    root.removeEventListener(`mouseup`, mouseUpHandler)
   }
   if (mouseDownHandler) {
-    previewRef.value.removeEventListener(`mousedown`, mouseDownHandler)
+    root.removeEventListener(`mousedown`, mouseDownHandler)
   }
   if (mouseMoveHandler) {
-    previewRef.value.removeEventListener(`mousemove`, mouseMoveHandler)
+    root.removeEventListener(`mousemove`, mouseMoveHandler)
   }
   if (clickHandler) {
-    previewRef.value.removeEventListener(`click`, clickHandler)
+    root.removeEventListener(`click`, clickHandler)
   }
 
   if (selectionCheckTimer) {
@@ -123,7 +127,7 @@ function setupElementSelection() {
       clearTimeout(selectionCheckTimer)
     }
     selectionCheckTimer = setTimeout(() => {
-      checkTextSelection()
+      checkTextSelection(doc)
     }, 50)
   }
 
@@ -135,7 +139,7 @@ function setupElementSelection() {
 
     // 延迟100ms后检查元素，避免过度敏感的响应
     hoverTimer = setTimeout(() => {
-      handleElementHover(e)
+      handleElementHover(e, root)
     }, 100)
   }
 
@@ -149,7 +153,8 @@ function setupElementSelection() {
 
     // 查找可编辑的HTML元素
     let element: HTMLElement | null = target
-    while (element && element !== previewRef.value) {
+    let found = false
+    while (element && element !== root) {
       // 检查元素是否可编辑：有文本内容或者是img/video等媒体元素
       const hasTextContent = element.textContent?.trim() && element.textContent.trim().length > 0
       const isMediaElement = [`IMG`, `VIDEO`, `AUDIO`, `CANVAS`, `SVG`, `IFRAME`].includes(element.tagName)
@@ -157,6 +162,9 @@ function setupElementSelection() {
       if (hasTextContent || isMediaElement) {
         // 检查鼠标位置是否在该元素内
         const rect = element.getBoundingClientRect()
+        const iframeElement = previewRef.value?.getIframe()
+        const iframeRect = iframeElement?.getBoundingClientRect() || { left: 0, top: 0 }
+
         if (e.clientX >= rect.left && e.clientX <= rect.right
           && e.clientY >= rect.top && e.clientY <= rect.bottom) {
           // 获取工具栏的实际高度
@@ -165,17 +173,17 @@ function setupElementSelection() {
           const toolbarHorizontalPadding = 20
           const estimatedToolbarWidth = 380
 
-          // 计算工具栏位置
-          let x = rect.left + rect.width / 2
-          let y = rect.top - estimatedToolbarHeight - toolbarVerticalPadding
+          // 计算工具栏位置（需要加上 iframe 的偏移量）
+          let x = iframeRect.left + rect.left + rect.width / 2
+          let y = iframeRect.top + rect.top - estimatedToolbarHeight - toolbarVerticalPadding
 
           // 检查可用空间
-          const spaceAbove = rect.top - toolbarVerticalPadding
-          const spaceBelow = window.innerHeight - rect.bottom - toolbarVerticalPadding
+          const spaceAbove = iframeRect.top + rect.top - toolbarVerticalPadding
+          const spaceBelow = window.innerHeight - (iframeRect.top + rect.bottom) - toolbarVerticalPadding
 
           // 如果上方空间不足且下方空间充足，则显示在元素下方
           if (spaceAbove < estimatedToolbarHeight && spaceBelow > estimatedToolbarHeight) {
-            y = rect.bottom + toolbarVerticalPadding
+            y = iframeRect.top + rect.bottom + toolbarVerticalPadding
           }
 
           // 确保工具栏不会超出屏幕横向边界
@@ -192,20 +200,27 @@ function setupElementSelection() {
           selectElement(element, true)
           contextMenuOpen.value = true
           selectedText.value = element.textContent || ``
-          return
+          found = true
+          break
         }
       }
       element = element.parentElement
     }
+
+    if (!found) {
+      contextMenuOpen.value = false
+      clearSelection()
+      removeHoverHighlight()
+    }
   }
 
-  previewRef.value.addEventListener(`mousedown`, mouseDownHandler)
-  previewRef.value.addEventListener(`mouseup`, mouseUpHandler)
-  previewRef.value.addEventListener(`mousemove`, mouseMoveHandler)
-  previewRef.value.addEventListener(`click`, clickHandler)
+  root.addEventListener(`mousedown`, mouseDownHandler)
+  root.addEventListener(`mouseup`, mouseUpHandler)
+  root.addEventListener(`mousemove`, mouseMoveHandler)
+  root.addEventListener(`click`, clickHandler)
 }
 
-function handleElementHover(e: MouseEvent) {
+function handleElementHover(e: MouseEvent, root: HTMLElement) {
   const target = e.target as HTMLElement
 
   // 如果正在选择文本或AI聊天已打开，不处理悬停
@@ -215,7 +230,7 @@ function handleElementHover(e: MouseEvent) {
 
   // 查找可编辑的HTML元素
   let element: HTMLElement | null = target
-  while (element && element !== previewRef.value) {
+  while (element && element !== root) {
     // 检查元素是否可编辑：有文本内容或者是img/video等媒体元素
     const hasTextContent = element.textContent?.trim() && element.textContent.trim().length > 0
     const isMediaElement = [`IMG`, `VIDEO`, `AUDIO`, `CANVAS`, `SVG`, `IFRAME`].includes(element.tagName)
@@ -279,12 +294,12 @@ function removeHoverHighlight() {
   }
 }
 
-function checkTextSelection() {
+function checkTextSelection(doc: Document) {
   if (isSelecting) {
     return
   }
 
-  const selection = window.getSelection()
+  const selection = doc.getSelection()
 
   // 如果没有文本选择
   if (!selection || selection.rangeCount === 0 || selection.toString().trim().length === 0) {
@@ -309,8 +324,10 @@ function checkTextSelection() {
       ? container.parentElement
       : container as HTMLElement
 
-    if (element && previewRef.value?.contains(element)) {
+    if (element) {
       const rect = range.getBoundingClientRect()
+      const iframeElement = previewRef.value?.getIframe()
+      const iframeRect = iframeElement?.getBoundingClientRect() || { left: 0, top: 0 }
 
       if (rect.width === 0 && rect.height === 0) {
         return
@@ -319,8 +336,9 @@ function checkTextSelection() {
       const menuWidth = 200
       const menuHeight = 400
 
-      let x = rect.left + rect.width / 2
-      let y = rect.top - menuHeight - 10
+      // 计算位置（加上 iframe 偏移）
+      let x = iframeRect.left + rect.left + rect.width / 2
+      let y = iframeRect.top + rect.top - menuHeight - 10
 
       if (x - menuWidth / 2 < 10) {
         x = menuWidth / 2 + 10
@@ -330,7 +348,7 @@ function checkTextSelection() {
       }
 
       if (y < 10) {
-        y = rect.bottom + 10
+        y = iframeRect.top + rect.bottom + 10
       }
 
       contextMenuPosition.value = { x, y }
@@ -834,10 +852,13 @@ function handleChangeToHeading(level: number) {
 
   if (previewRef.value && newElement.parentNode) {
     nextTick(() => {
-      setupElementSelection()
-      const updatedElement = previewRef.value?.querySelector(newElement.tagName.toLowerCase())
-      if (updatedElement) {
-        selectElement(updatedElement as HTMLElement)
+      const doc = previewRef.value?.getDocument()
+      if (doc) {
+        setupElementSelection(doc)
+        const updatedElement = doc.querySelector(newElement.tagName.toLowerCase())
+        if (updatedElement) {
+          selectElement(updatedElement as HTMLElement)
+        }
       }
     })
   }
@@ -1112,10 +1133,9 @@ onMounted(() => {
 
   const closeMenuHandler = (e: MouseEvent) => {
     const target = e.target as HTMLElement
-    // 点击工具栏、预览区域、AI输入框或对话框时，不关闭工具栏
-    // 当图片选择相关对话框打开时，也不清除选择
+    // 点击工具栏、AI输入框或对话框时，不关闭工具栏
+    // 注意：由于 iframe 隔离，点击 iframe 内部不会触发此 document 的 click 事件
     if (!target.closest(`.floating-style-toolbar`)
-      && !target.closest(`#html-output`)
       && !target.closest(`.ai-refine-input`)
       && !imageSelectionDialogOpen.value
       && !searchImageDialogOpen.value) {
@@ -1134,17 +1154,20 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (mouseUpHandler && previewRef.value) {
-    previewRef.value.removeEventListener(`mouseup`, mouseUpHandler)
-  }
-  if (mouseDownHandler && previewRef.value) {
-    previewRef.value.removeEventListener(`mousedown`, mouseDownHandler)
-  }
-  if (mouseMoveHandler && previewRef.value) {
-    previewRef.value.removeEventListener(`mousemove`, mouseMoveHandler)
-  }
-  if (clickHandler && previewRef.value) {
-    previewRef.value.removeEventListener(`click`, clickHandler)
+  if (currentDoc) {
+    const root = currentDoc.getElementById(`html-output`) || currentDoc.body
+    if (mouseUpHandler) {
+      root.removeEventListener(`mouseup`, mouseUpHandler)
+    }
+    if (mouseDownHandler) {
+      root.removeEventListener(`mousedown`, mouseDownHandler)
+    }
+    if (mouseMoveHandler) {
+      root.removeEventListener(`mousemove`, mouseMoveHandler)
+    }
+    if (clickHandler) {
+      root.removeEventListener(`click`, clickHandler)
+    }
   }
   if (selectionCheckTimer) {
     clearTimeout(selectionCheckTimer)
@@ -1159,10 +1182,12 @@ onUnmounted(() => {
 
 <template>
   <div class="h-full w-full">
-    <div
-      id="html-output"
+    <HtmlRenderBase
       ref="previewRef"
-      class="html-preview-panel html-preview-content h-full w-full overflow-y-auto bg-background relative p-4"
+      :html-content="htmlContent"
+      :scroll-top="scrollTop"
+      @load="handleBaseLoad"
+      @scroll="handleBaseScroll"
     />
     <Teleport to="body">
       <Transition
