@@ -1,25 +1,25 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, toRefs } from 'vue'
 
 interface Props {
   toolName: string
   input: any
 }
 
-const props = defineProps<Props>()
+const { toolName, input } = toRefs(defineProps<Props>())
 
 const isExpanded = ref(false)
 
 const fullInputString = computed(() => {
-  if (!props.input)
+  if (!input.value)
     return ``
-  if (typeof props.input === `string`)
-    return props.input
+  if (typeof input.value === `string`)
+    return input.value
   try {
-    return JSON.stringify(props.input, null, 2)
+    return JSON.stringify(input.value, null, 2)
   }
   catch (e) {
-    return String(props.input)
+    return String(input.value)
   }
 })
 

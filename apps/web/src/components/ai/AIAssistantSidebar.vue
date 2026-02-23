@@ -104,7 +104,7 @@ interface ChatMessage extends Omit<BaseChatMessage, `role` | `id`> {
 
 const messages = ref<ChatMessage[]>([])
 const AIConfigStore = useAIConfigStore()
-const { apiKey, endpoint, model, temperature, maxToken, type } = storeToRefs(AIConfigStore)
+const { apiKey, endpoint, model, maxToken, type } = storeToRefs(AIConfigStore)
 const projectStore = useProjectStore()
 const { currentProject } = storeToRefs(projectStore)
 
@@ -227,9 +227,6 @@ function cleanMessagesForStorage(messages: ChatMessage[]): ChatMessage[] {
 }
 
 /* ---------- 事件处理 ---------- */
-function switchToImageGenerator() {
-  toggleAIImageDialog(true)
-}
 
 // 将图片应用到编辑器
 function applyImageToEditor(img: { url?: string, base64?: string, prompt?: string }) {

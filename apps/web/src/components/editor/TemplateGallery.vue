@@ -78,10 +78,6 @@ function applyTemplate(card: TemplateCard) {
     name: card.name,
   })
 }
-
-function closeGallery() {
-  emit(`close`)
-}
 </script>
 
 <template>

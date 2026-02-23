@@ -33,7 +33,7 @@ const emit = defineEmits([`update:open`])
 const editorStore = useEditorStore()
 const { editor } = storeToRefs(editorStore)
 const displayStore = useDisplayStore()
-const { toggleAIDialog } = displayStore
+const { toggleAIImageDialog } = displayStore
 
 /* ---------- 弹窗开关 ---------- */
 const dialogVisible = ref(props.open)
@@ -188,7 +188,7 @@ function switchToChat() {
   emit(`update:open`, false)
   // 然后打开聊天对话框
   setTimeout(() => {
-    toggleAIDialog(true)
+    toggleAIImageDialog(true)
   }, 100)
 }
 

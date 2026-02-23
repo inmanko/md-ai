@@ -8,7 +8,7 @@ import { usePostStore } from '@/stores/post'
 import { useUIStore } from '@/stores/ui'
 import { useHtmlEditorStore } from './useHtmlEditorStore'
 
-const props = defineProps<{
+const { initialContent } = defineProps<{
   initialContent?: string
 }>()
 
@@ -27,8 +27,8 @@ let editorView: EditorView | null = null
 const themeCompartment = new Compartment()
 
 function getInitialContent(): string {
-  if (props.initialContent) {
-    return props.initialContent
+  if (initialContent) {
+    return initialContent
   }
   const currentPost = postStore.currentPost
   if (currentPost?.content) {

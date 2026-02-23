@@ -10,11 +10,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useEditorStore } from '@/stores/editor'
-import { useRenderStore } from '@/stores/render'
 import { generatePureHTML } from '@/utils'
 import { useHtmlEditorStore } from './html-editor/useHtmlEditorStore'
 
-const props = defineProps<{
+defineProps<{
   compact?: boolean
 }>()
 
@@ -24,7 +23,6 @@ const emit = defineEmits<{
 
 const htmlEditorStore = useHtmlEditorStore()
 const editorStore = useEditorStore()
-const renderStore = useRenderStore()
 
 const { editMode, isHtmlMode } = storeToRefs(htmlEditorStore)
 
@@ -176,7 +174,7 @@ ${convertedContent}
 
 <template>
   <!-- 紧凑模式 - 用于垂直侧边栏 -->
-  <template v-if="props.compact">
+  <template v-if="compact">
     <Tooltip>
       <TooltipTrigger as-child>
         <button

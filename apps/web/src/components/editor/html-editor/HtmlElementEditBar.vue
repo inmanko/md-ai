@@ -28,7 +28,7 @@ import { findElementByIdInSource } from './htmlElementUtils'
 import { useHtmlEditorStore } from './useHtmlEditorStore'
 import { usePreviewStyleStore } from './usePreviewStyleStore'
 
-const props = defineProps<{
+const { htmlContent } = defineProps<{
   htmlContent: string
 }>()
 
@@ -42,7 +42,7 @@ const selectedText = ref(``)
 const aiChatOpen = ref(false)
 const isAiRefining = ref(false)
 const aiConfigStore = useAIConfigStore()
-const { endpoint, model, apiKey, temperature, maxToken, type } = storeToRefs(aiConfigStore)
+const { endpoint, model, apiKey, maxToken, type } = storeToRefs(aiConfigStore)
 
 // 图片选择相关状态
 const imageSelectionDialogOpen = ref(false)
@@ -58,7 +58,7 @@ let transitionTimer: ReturnType<typeof setTimeout> | null = null
 
 watchEffect(() => {
   if (previewRef.value) {
-    previewRef.value.innerHTML = props.htmlContent
+    previewRef.value.innerHTML = htmlContent
     nextTick(() => {
       previewStyleStore.applyStyles()
       setupElementSelection()

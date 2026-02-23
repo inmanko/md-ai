@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ModelConfig } from '@grisaiaevy/crafting-agent'
 import { Bot, ChevronDownIcon, Eye, EyeOff, Menu, Palette, SlidersHorizontal } from 'lucide-vue-next'
 import { HtmlMarkdownConverter, useHtmlEditorStore } from '@/components/editor/html-editor'
 import { usePreviewStyleStore } from '@/components/editor/html-editor/usePreviewStyleStore'
@@ -30,7 +31,7 @@ const { output } = storeToRefs(renderStore)
 const { primaryColor } = storeToRefs(themeStore)
 const { isOpenRightSlider, isOpenAIPanel } = storeToRefs(uiStore)
 const { toggleAIPanel } = uiStore
-const { isHtmlMode, htmlContent, showHtmlEditor } = storeToRefs(htmlEditorStore)
+const { isHtmlMode, showHtmlEditor } = storeToRefs(htmlEditorStore)
 const {
   type: aiServiceType,
   endpoint,

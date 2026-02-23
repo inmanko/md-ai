@@ -32,6 +32,7 @@ export class SimplePromptBuilder implements ISystemPromptBuilder {
 ## 文章样式
 微信公众号支持使用HTML+CSS进行编辑，因此可以让给一篇文章带来更为丰富多样的排版与展示效果。
 请注意，HTML与CSS语法是有限制的，它可以使用的范围为以下内容，你只能从这些内容中选择使用：
+${supportHtmlTags}
 # 能力 & 工具调用
 1. 以下是你拥有的所有工具，在合理的时机选择使用它们并完成用户的需求。
 ## write_artcle
