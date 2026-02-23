@@ -12,7 +12,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: github.repository == 'doocs/md'
+    if: github.repository == 'inmanko/md-ai'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -47,7 +47,7 @@ jobs:
       - name: Generate CNAME
         run: |
           mkdir -p apps/web/dist
-          echo "md.doocs.org" > apps/web/dist/CNAME
+          echo "wx.inmanko.com" > apps/web/dist/CNAME
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
@@ -71,7 +71,7 @@ jobs:
   deploy-cloudflare:
     needs: build
     runs-on: ubuntu-latest
-    if: github.repository == 'doocs/md'
+    if: github.repository == 'inmanko/md-ai'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -99,7 +99,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --name md
+          command: deploy --name md-ai
           workingDirectory: apps/web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -108,4 +108,4 @@ jobs:
       - name: Deployment Summary
         run: |
           echo "🚀 Deployed to Cloudflare Workers!"
-          echo "📍 URL: https://md.doocs.workers.dev"
+          echo "📍 URL: https://wx.inmanko.com"
