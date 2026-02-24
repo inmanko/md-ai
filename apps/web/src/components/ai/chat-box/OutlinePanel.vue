@@ -7,7 +7,7 @@ import { useHtmlEditorStore } from '@/components/editor/html-editor/useHtmlEdito
 import { useEditorStore } from '@/stores/editor'
 import OutlineEditor from './OutlineEditor.vue'
 
-const props = defineProps<{
+defineProps<{
   input?: string
   sendMessage?: () => void
 }>()

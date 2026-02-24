@@ -9,7 +9,7 @@ interface Task {
   createdAt?: Date | string
 }
 
-const props = defineProps<{
+defineProps<{
   tasks: Task[]
   currentTask?: Task | null
 }>()

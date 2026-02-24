@@ -22,7 +22,6 @@ const renderStore = useRenderStore()
 const uiStore = useUIStore()
 const exportStore = useExportStore()
 const displayStore = useDisplayStore()
-const aiConfigStore = useAIConfigStore()
 const htmlEditorStore = useHtmlEditorStore()
 const previewStyleStore = usePreviewStyleStore()
 
@@ -31,38 +30,7 @@ const { output } = storeToRefs(renderStore)
 const { primaryColor } = storeToRefs(themeStore)
 const { isOpenRightSlider, isOpenAIPanel } = storeToRefs(uiStore)
 const { toggleAIPanel } = uiStore
-const { isHtmlMode, showHtmlEditor } = storeToRefs(htmlEditorStore)
-const {
-  type: aiServiceType,
-  endpoint,
-  model,
-  apiKey,
-  maxToken,
-} = storeToRefs(aiConfigStore)
-
-const providerMap: Record<string, NonNullable<ModelConfig[`agentModel`]>[`provider`]> = {
-  doubao: `doubao`,
-  google: `google`,
-  minimax: `minimax`,
-  openrouter: `openrouter`,
-}
-
-const modelConfig = computed<ModelConfig>(() => ({
-  agentModel: {
-    provider: providerMap[aiServiceType.value] || `openrouter`,
-    apiKey: apiKey.value,
-    baseUrl: endpoint.value,
-    modelName: model.value,
-    maxTokens: maxToken.value,
-  },
-}))
-
-const taskDialogOpen = ref(false)
-const taskInstruction = ref(`请根据当前文章内容生成一段摘要。`)
-const taskOutput = ref(``)
-const taskReasoning = ref<string[]>([])
-const taskRunning = ref(false)
-const lastTaskError = ref<string | null>(null)
+const { isHtmlMode, htmlContent, showHtmlEditor } = storeToRefs(htmlEditorStore)
 
 // Editor refresh function
 function editorRefresh() {
@@ -95,7 +63,7 @@ function handleModeChanged(mode: `markdown` | `html`, convertedContent?: string)
     }
     else {
       // HTML 切换到 Markdown，更新编辑器内容
-      editorStore.setContent(convertedContent)
+      editorStore.importContent(convertedContent)
       nextTick(() => {
         editorRefresh()
       })

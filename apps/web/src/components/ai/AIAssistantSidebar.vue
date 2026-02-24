@@ -45,7 +45,6 @@ const { isHtmlMode } = storeToRefs(htmlEditorStore)
 const htmlEditor = computed(() => htmlEditorStore.htmlEditor)
 
 const displayStore = useDisplayStore()
-const { toggleAIImageDialog } = displayStore
 
 /* ---------- 输入 & 历史 ---------- */
 const input = ref<string>(``)
@@ -227,6 +226,9 @@ function cleanMessagesForStorage(messages: ChatMessage[]): ChatMessage[] {
 }
 
 /* ---------- 事件处理 ---------- */
+function switchToImageGenerator() {
+  displayStore.toggleAIImageDialog(true)
+}
 
 // 将图片应用到编辑器
 function applyImageToEditor(img: { url?: string, base64?: string, prompt?: string }) {
